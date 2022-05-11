@@ -38,13 +38,15 @@ public class FruitService {
 
     public ResponseEntity<?> addFruit(Fruit fruit) {
         if ((fruit.getName() != null) && (fruit.getWeight() > 0) && !repository.existsById(fruit.getId())){
-            repository.save(fruit);
+            Fruit saveFruit = repository.save(fruit);
             HttpHeaders responseHeaders = new HttpHeaders();
-            responseHeaders.setLocation(URI.create(String.format("/fruita/%d", fruit.getId())));
-            return new ResponseEntity<>(String.format("201 - resource created successfully on /fruita/%d", fruit.getId()),
-                    responseHeaders, HttpStatus.CREATED);
+            responseHeaders.setLocation(URI.create(String.format("/fruita/%d", saveFruit.getId())));
+            return new ResponseEntity<>(String.format("201 - resource created successfully on /fruita/%d",
+                    saveFruit.getId()), responseHeaders, HttpStatus.CREATED);
         }else{
-            if (fruit.getName() == null){
+            if (fruit.getName() == null && fruit.getWeight() <= 0){
+                return new ResponseEntity<>("400 - Name is empty!\n400 - Weight have to be bigger than zero!", HttpStatus.BAD_REQUEST);
+            }else if (fruit.getName() == null) {
                 return new ResponseEntity<>("400 - Name is empty!", HttpStatus.BAD_REQUEST);
             }else if (fruit.getWeight() <= 0){
                 return new ResponseEntity<>("400 - Weight have to be bigger than zero!", HttpStatus.BAD_REQUEST);
@@ -52,21 +54,21 @@ public class FruitService {
                 return new ResponseEntity<>("400 - ID already exists on database!", HttpStatus.BAD_REQUEST);
             }
         }
-
     }
 
     public ResponseEntity<?> updateFruit(Fruit fruit) {
-        if ((fruit.getName() != null) && (fruit.getWeight() > 0) && repository.existsById(fruit.getId())){
-            repository.save(fruit);
-            return new ResponseEntity<>(String.format("200 - resource updated successfully on /fruita/%d", fruit.getId()),HttpStatus.OK);
-        } else {
-            if (fruit.getName() == null){
-                return new ResponseEntity<>("400 - Name is empty!", HttpStatus.BAD_REQUEST);
-            }else if (fruit.getWeight() <= 0){
-                return new ResponseEntity<>("400 - Weight have to be bigger than zero!", HttpStatus.BAD_REQUEST);
-            }else{
-                return addFruit(fruit);
+        if (repository.existsById(fruit.getId())){
+            Fruit saveFruit = repository.getById(fruit.getId());
+            if (fruit.getName() != null){
+                saveFruit.setName(fruit.getName());
             }
+            if (fruit.getWeight() > 0){
+                saveFruit.setWeight(fruit.getWeight());
+            }
+            repository.save(saveFruit);
+            return new ResponseEntity<>(String.format("200 - resource updated successfully on /fruita/%d", saveFruit.getId()),HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(String.format("404 - ID %d not found!", fruit.getId()), HttpStatus.NOT_FOUND);
         }
     }
 
