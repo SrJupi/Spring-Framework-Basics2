@@ -1,6 +1,7 @@
 package cat.itacademy.barcelonactiva.cognoms.nom.s04.t02.n03.model.services;
 
 import cat.itacademy.barcelonactiva.cognoms.nom.s04.t02.n03.model.domain.Fruit;
+import cat.itacademy.barcelonactiva.cognoms.nom.s04.t02.n03.model.domain.SequenceService;
 import cat.itacademy.barcelonactiva.cognoms.nom.s04.t02.n03.model.repository.IFruitRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -17,6 +18,8 @@ public class FruitService {
 
     @Autowired
     private IFruitRepository repository;
+    @Autowired
+    private SequenceService sequenceService;
 
     public ResponseEntity<?> getFruits(){
         List<Fruit> fruitList = repository.findAll();
@@ -37,14 +40,17 @@ public class FruitService {
     }
 
     public ResponseEntity<?> addFruit(Fruit fruit) {
+        fruit.setId(sequenceService.generateSequence(fruit.SEQ_NAME));
         if ((fruit.getName() != null) && (fruit.getWeight() > 0) && !repository.existsById(fruit.getId())){
-            repository.save(fruit);
+            Fruit saveFruit = repository.save(fruit);
             HttpHeaders responseHeaders = new HttpHeaders();
-            responseHeaders.setLocation(URI.create(String.format("/fruita/%d", fruit.getId())));
-            return new ResponseEntity<>(String.format("201 - resource created successfully on /fruita/%d", fruit.getId()),
-                    responseHeaders, HttpStatus.CREATED);
+            responseHeaders.setLocation(URI.create(String.format("/fruita/%d", saveFruit.getId())));
+            return new ResponseEntity<>(String.format("201 - resource created successfully on /fruita/%d",
+                    saveFruit.getId()), responseHeaders, HttpStatus.CREATED);
         }else{
-            if (fruit.getName() == null){
+            if (fruit.getName() == null && fruit.getWeight() <= 0){
+                return new ResponseEntity<>("400 - Name is empty!\n400 - Weight have to be bigger than zero!", HttpStatus.BAD_REQUEST);
+            }else if (fruit.getName() == null) {
                 return new ResponseEntity<>("400 - Name is empty!", HttpStatus.BAD_REQUEST);
             }else if (fruit.getWeight() <= 0){
                 return new ResponseEntity<>("400 - Weight have to be bigger than zero!", HttpStatus.BAD_REQUEST);
@@ -52,21 +58,26 @@ public class FruitService {
                 return new ResponseEntity<>("400 - ID already exists on database!", HttpStatus.BAD_REQUEST);
             }
         }
-
     }
 
     public ResponseEntity<?> updateFruit(Fruit fruit) {
-        if ((fruit.getName() != null) && (fruit.getWeight() > 0) && repository.existsById(fruit.getId())){
-            repository.save(fruit);
-            return new ResponseEntity<>(String.format("200 - resource updated successfully on /fruita/%d", fruit.getId()),HttpStatus.OK);
-        } else {
-            if (fruit.getName() == null){
-                return new ResponseEntity<>("400 - Name is empty!", HttpStatus.BAD_REQUEST);
-            }else if (fruit.getWeight() <= 0){
-                return new ResponseEntity<>("400 - Weight have to be bigger than zero!", HttpStatus.BAD_REQUEST);
+        if (repository.existsById(fruit.getId())){
+            Optional <Fruit> optionalFruit = repository.findById(fruit.getId());
+            if (optionalFruit.isPresent()) {
+                Fruit saveFruit = optionalFruit.get();
+                if (fruit.getName() != null) {
+                    saveFruit.setName(fruit.getName());
+                }
+                if (fruit.getWeight() > 0) {
+                    saveFruit.setWeight(fruit.getWeight());
+                }
+                repository.save(saveFruit);
+                return new ResponseEntity<>(String.format("200 - resource updated successfully on /fruita/%d", saveFruit.getId()), HttpStatus.OK);
             }else{
-                return addFruit(fruit);
+                return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
             }
+        } else {
+            return new ResponseEntity<>(String.format("404 - ID %d not found!", fruit.getId()), HttpStatus.NOT_FOUND);
         }
     }
 

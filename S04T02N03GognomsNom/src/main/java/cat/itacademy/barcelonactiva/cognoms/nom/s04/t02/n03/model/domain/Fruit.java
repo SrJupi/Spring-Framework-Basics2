@@ -1,11 +1,14 @@
 package cat.itacademy.barcelonactiva.cognoms.nom.s04.t02.n03.model.domain;
 
-import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-
+import javax.persistence.*;
 
 @Document("fruits")
 public class Fruit {
+
+    @Transient
+    public static final String SEQ_NAME = "fruit_id";
+
     @Id
     private int id;
     private String name;
